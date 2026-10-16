@@ -1,66 +1,69 @@
 import {useEffect, useState} from 'react';
+import {traducciones} from './utils/traducciones';
 import './App.css';
 
+const API = 'https://ejercicio3-practicas.onrender.com/tareas';
+
 function App() {
+  const [idioma, setIdioma] = useState('es');
+  const t = traducciones[idioma];
+
   const [tareas, setTareas] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [guardando, setGuardando] = useState(false);
-  const [errorGuardar, setErrorGuardar] = useState(null);
+  const [errorGuardar, setErrorGuardar] = useState('');
+
   const [eliminando, setEliminando] = useState(null);
   const [errorEliminar, setErrorEliminar] = useState('');
 
   useEffect(() => {
-    const fetchTareas = async () => {
+    async function cargarTareas() {
       try {
-        const response = await fetch(
-          'https://ejercicio3-practicas.onrender.com/tareas',
-        );
+        const respuesta = await fetch(API);
 
-        if (!response.ok) {
+        if (!respuesta.ok) {
           throw new Error('Error al obtener las tareas');
         }
 
-        const data = await response.json();
-        setTareas(data);
-      } catch (error) {
-        setError(error.message);
+        const datos = await respuesta.json();
+        setTareas(datos);
+      } catch {
+        setError('errorCargar');
       } finally {
         setCargando(false);
       }
-    };
+    }
 
-    fetchTareas();
+    cargarTareas();
   }, []);
 
   async function crearTarea(evento) {
     evento.preventDefault();
 
     if (!titulo.trim()) {
-      setErrorGuardar('Escribe un título para la tarea.');
+      setErrorGuardar('tituloObligatorio');
       return;
     }
 
     setGuardando(true);
-    setErrorGuardar(null);
+    setErrorGuardar('');
 
     try {
-      const respuesta = await fetch(
-        'https://ejercicio3-practicas.onrender.com/tareas',
-        {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            titulo: titulo.trim(),
-            descripcion: descripcion.trim(),
-          }),
-        },
-      );
+      const respuesta = await fetch(API, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          titulo: titulo.trim(),
+          descripcion: descripcion.trim(),
+        }),
+      });
 
       if (!respuesta.ok) {
-        throw new Error('No se pudo crear la tarea');
+        throw new Error('Error al crear la tarea');
       }
 
       const nuevaTarea = await respuesta.json();
@@ -69,7 +72,7 @@ function App() {
       setTitulo('');
       setDescripcion('');
     } catch {
-      setErrorGuardar('No se pudo crear la tarea. Intenta nuevamente.');
+      setErrorGuardar('errorGuardar');
     } finally {
       setGuardando(false);
     }
@@ -80,76 +83,89 @@ function App() {
     setErrorEliminar('');
 
     try {
-      const respuesta = await fetch(
-        `https://ejercicio3-practicas.onrender.com/tareas/${id}`,
-        {method: 'DELETE'},
-      );
+      const respuesta = await fetch(`${API}/${id}`, {
+        method: 'DELETE',
+      });
 
       if (!respuesta.ok) {
-        throw new Error('No se pudo eliminar la tarea');
+        throw new Error('Error al eliminar la tarea');
       }
 
       setTareas(anteriores =>
         anteriores.filter(tarea => tarea.id !== id),
       );
     } catch {
-      setErrorEliminar('No se pudo eliminar la tarea. Intenta nuevamente.');
+      setErrorEliminar('errorEliminar');
     } finally {
       setEliminando(null);
     }
   }
 
-  if (cargando) {
-    return <p>Cargando tareas...</p>;
-  }
-
-  if (error) {
-    return <p>Error: {error}</p>;
-  }
-
   return (
     <main>
-      <h1>Mis tareas</h1>
+      <label htmlFor="idioma">{t.idioma}</label>
+      <select
+        id="idioma"
+        value={idioma}
+        onChange={evento => setIdioma(evento.target.value)}
+      >
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+      </select>
+
+      <h1>{t.misTareas}</h1>
 
       <form onSubmit={crearTarea}>
         <label>
-          Título:
+          {t.titulo}:
           <input
             type="text"
             value={titulo}
             onChange={evento => setTitulo(evento.target.value)}
+            placeholder={t.escribirTitulo}
             disabled={guardando}
           />
         </label>
 
         <label>
-          Descripción:
+          {t.descripcion}:
           <textarea
             value={descripcion}
             onChange={evento => setDescripcion(evento.target.value)}
+            placeholder={t.escribirDescripcion}
             disabled={guardando}
           />
         </label>
 
-        <button type="submit" disabled={guardando}>
-          {guardando ? 'Guardando...' : 'Crear tarea'}
+        <button
+          type="submit"
+          disabled={guardando || cargando || error !== ''}
+        >
+          {guardando ? t.guardando : t.crear}
         </button>
 
         {errorGuardar && (
           <p className="error" role="alert">
-            {errorGuardar}
+            {t[errorGuardar]}
           </p>
         )}
       </form>
 
       {errorEliminar && (
         <p className="error" role="alert">
-          {errorEliminar}
+          {t[errorEliminar]}
         </p>
       )}
 
-      {tareas.length === 0 ? (
-        <p>No hay tareas para mostrar.</p>
+      {cargando ? (
+        <p>{t.cargando}</p>
+      ) : error ? (
+        <p className="error" role="alert">
+          {t[error]}
+        </p>
+      ) : tareas.length === 0 ? (
+        <p>{t.sinTareas}</p>
       ) : (
         <ul>
           {tareas.map(tarea => (
@@ -162,7 +178,7 @@ function App() {
                 onClick={() => eliminarTarea(tarea.id)}
                 disabled={eliminando !== null}
               >
-                {eliminando === tarea.id ? 'Eliminando...' : 'Eliminar'}
+                {eliminando === tarea.id ? t.eliminando : t.eliminar}
               </button>
             </li>
           ))}

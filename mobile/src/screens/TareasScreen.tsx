@@ -1,12 +1,12 @@
 import {useEffect, useState} from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TextInput,
-  Button,
-} from 'react-native';
+import {View, Text, FlatList, StyleSheet, TextInput, Button, } from 'react-native';
+
+import {traducciones} from '../utils/traducciones';
+import type {Idioma} from '../utils/traducciones';
+
+type Props = {
+  idioma: Idioma;
+};
 
 type Tarea = {
   id: string;
@@ -16,18 +16,24 @@ type Tarea = {
 
 const API = 'https://ejercicio3-practicas.onrender.com/tareas';
 
-export default function TareasScreen() {
+export default function TareasScreen({idioma}: Props) {
+  const t = traducciones[idioma];
+
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<'' | 'errorCargar'>('');
 
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [guardando, setGuardando] = useState(false);
-  const [errorGuardar, setErrorGuardar] = useState('');
+  const [errorGuardar, setErrorGuardar] = useState<
+    '' | 'tituloObligatorio' | 'errorGuardar'
+  >('');
 
   const [eliminando, setEliminando] = useState<string | null>(null);
-  const [errorEliminar, setErrorEliminar] = useState('');
+  const [errorEliminar, setErrorEliminar] = useState<
+    '' | 'errorEliminar'
+  >('');
 
   useEffect(() => {
     async function cargarTareas() {
@@ -35,13 +41,13 @@ export default function TareasScreen() {
         const respuesta = await fetch(API);
 
         if (!respuesta.ok) {
-          throw new Error('No se pudieron obtener las tareas');
+          throw new Error('Error al obtener las tareas');
         }
 
         const datos: Tarea[] = await respuesta.json();
         setTareas(datos);
       } catch {
-        setError('No se pudieron cargar las tareas.');
+        setError('errorCargar');
       } finally {
         setCargando(false);
       }
@@ -52,7 +58,7 @@ export default function TareasScreen() {
 
   async function crearTarea() {
     if (!titulo.trim()) {
-      setErrorGuardar('Escribe un título para la tarea.');
+      setErrorGuardar('tituloObligatorio');
       return;
     }
 
@@ -70,7 +76,7 @@ export default function TareasScreen() {
       });
 
       if (!respuesta.ok) {
-        throw new Error('No se pudo crear la tarea');
+        throw new Error('Error al crear la tarea');
       }
 
       const nuevaTarea: Tarea = await respuesta.json();
@@ -79,7 +85,7 @@ export default function TareasScreen() {
       setTitulo('');
       setDescripcion('');
     } catch {
-      setErrorGuardar('No se pudo crear la tarea. Intenta nuevamente.');
+      setErrorGuardar('errorGuardar');
     } finally {
       setGuardando(false);
     }
@@ -95,14 +101,14 @@ export default function TareasScreen() {
       });
 
       if (!respuesta.ok) {
-        throw new Error('No se pudo eliminar la tarea');
+        throw new Error('Error al eliminar la tarea');
       }
 
       setTareas(anteriores =>
         anteriores.filter(tarea => tarea.id !== id),
       );
     } catch {
-      setErrorEliminar('No se pudo eliminar la tarea. Intenta nuevamente.');
+      setErrorEliminar('errorEliminar');
     } finally {
       setEliminando(null);
     }
@@ -110,49 +116,49 @@ export default function TareasScreen() {
 
   return (
     <View style={styles.contenedor}>
-      <Text style={styles.titulo}>Mis tareas</Text>
+      <Text style={styles.titulo}>{t.misTareas}</Text>
 
       <View style={styles.formulario}>
-        <Text style={styles.texto}>Título</Text>
+        <Text style={styles.texto}>{t.titulo}</Text>
         <TextInput
           style={styles.campo}
           value={titulo}
           onChangeText={setTitulo}
-          placeholder="Escribe una tarea"
+          placeholder={t.escribirTitulo}
           placeholderTextColor="#666"
           editable={!guardando}
         />
 
-        <Text style={styles.texto}>Descripción</Text>
+        <Text style={styles.texto}>{t.descripcion}</Text>
         <TextInput
           style={styles.campo}
           value={descripcion}
           onChangeText={setDescripcion}
-          placeholder="Agrega una descripción"
+          placeholder={t.escribirDescripcion}
           placeholderTextColor="#666"
           multiline
           editable={!guardando}
         />
 
         <Button
-          title={guardando ? 'Guardando...' : 'Crear tarea'}
+          title={guardando ? t.guardando : t.crear}
           onPress={crearTarea}
           disabled={guardando || cargando || error !== ''}
         />
 
         {errorGuardar !== '' && (
-          <Text style={styles.error}>{errorGuardar}</Text>
+          <Text style={styles.error}>{t[errorGuardar]}</Text>
         )}
       </View>
 
       {errorEliminar !== '' && (
-        <Text style={styles.error}>{errorEliminar}</Text>
+        <Text style={styles.error}>{t[errorEliminar]}</Text>
       )}
 
       {cargando ? (
-        <Text style={styles.texto}>Cargando tareas...</Text>
+        <Text style={styles.texto}>{t.cargando}</Text>
       ) : error !== '' ? (
-        <Text style={styles.error}>{error}</Text>
+        <Text style={styles.error}>{t[error]}</Text>
       ) : (
         <FlatList
           style={styles.lista}
@@ -160,7 +166,7 @@ export default function TareasScreen() {
           keyExtractor={item => item.id}
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
-            <Text style={styles.texto}>No hay tareas para mostrar.</Text>
+            <Text style={styles.texto}>{t.sinTareas}</Text>
           }
           renderItem={({item}) => (
             <View style={styles.tarea}>
@@ -168,7 +174,9 @@ export default function TareasScreen() {
               <Text style={styles.descripcion}>{item.descripcion}</Text>
 
               <Button
-                title={eliminando === item.id ? 'Eliminando...' : 'Eliminar'}
+                title={
+                  eliminando === item.id ? t.eliminando : t.eliminar
+                }
                 onPress={() => eliminarTarea(item.id)}
                 disabled={eliminando !== null}
               />
